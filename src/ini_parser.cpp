@@ -14,6 +14,15 @@
    limitations under the License.
  */
 
+/**
+ * @file
+ *
+ * @detail The parser is implemented as finite state machine. Each
+ * state is represented as member function pointer. When client calls
+ * the advance() function the parser produces an event and switches
+ * it's parse function to handle next expected event.
+ */
+
 #include "config/ini/parser.hpp"
 #include <sstream>
 #include <cctype>
@@ -30,6 +39,16 @@ const char * event_type_to_string(parser::event_type t)
     case parser::EVENT_VALUE: return "VALUE";
     case parser::EVENT_END: return "END";
     default: return "UNKNOWN";
+    }
+}
+
+void trim_right(std::string & s)
+{
+    const std::size_t n = s.length();
+    std::size_t i = n;
+    while (i && std::isspace(s[i - 1])) --i;
+    if (i != n) {
+        s.erase(i);
     }
 }
 }
@@ -68,7 +87,10 @@ bool parser::advance_gen(event & e)
             handle_new_line();
             break;
         case ';':
-            return advance_comment(e);
+            if (!skip_comment(e)) {
+                return false;
+            }
+            continue;
         case '[':
             return advance_section(e);
         default:
@@ -86,18 +108,19 @@ bool parser::advance_gen(event & e)
     }
 }
 
-bool parser::advance_comment(event & e)
+bool parser::skip_comment(event & e)
 {
     for (;;) {
         const char c = get_char();
+
         switch (c) {
         case '\r':
             check_lf();
         case '\n':
             handle_new_line();
-            return advance_gen(e);
+            return bool(in_);
         default:
-            if (handle_eof(e)) return false;
+            if (!in_) return false;
             /* Consuming symbols till the end of the string */
             continue;
         }
@@ -107,6 +130,7 @@ bool parser::advance_comment(event & e)
 bool parser::advance_section(event & e)
 {
     e.value.clear();
+    skip_ws();
     for (;;) {
         const char c = get_char();
         if (handle_eof(e)) {
@@ -123,11 +147,12 @@ bool parser::advance_section(event & e)
             return false;
         case ']':
             if (e.value.empty()) {
-                e.type = EVENT_ERROR;
+                unexpected_token(e, "]");
             } else {
                 e.type = EVENT_SECTION;
             }
             state_ = &parser::advance_gen;
+            trim_right(e.value);
             return true;
         default:
             e.value.push_back(c);
@@ -159,6 +184,7 @@ bool parser::advance_param(event & e)
         case '=':
             state_ = &parser::advance_value;
             e.type = EVENT_NAME;
+            trim_right(e.value);
             return true;
         default:
             e.value.push_back(c);
@@ -169,18 +195,14 @@ bool parser::advance_param(event & e)
 bool parser::advance_value(event & e)
 {
     e.value.clear();
+    skip_ws();
     for (;;) {
         const char c = get_char();
 
         if (in_.eof()) {
+            // Empty values at the end of file are ok
             state_ = &parser::advance_eof;
-            const bool empty = e.value.empty();
-            if (empty) {
-                unexpected_token(e, "end of file");
-            } else {
-                e.type = EVENT_VALUE;
-            }
-            return !empty;
+            goto done;
         }
 
         switch (c) {
@@ -189,12 +211,30 @@ bool parser::advance_value(event & e)
         case '\n':
             handle_new_line();
             state_ = &parser::advance_gen;
-            e.type = EVENT_VALUE;
-            return true;
+            goto done;
+        case ';':
+            if (!skip_comment(e)) {
+                state_ = &parser::advance_eof;
+            } else {
+                state_ = &parser::advance_gen;
+            }
+            goto done;
         default:
             e.value.push_back(c);
         }
     }
+    done:
+    e.type = EVENT_VALUE;
+    trim_right(e.value);
+    return true;
+}
+
+bool parser::advance_eof(event & e)
+{
+    state_ = &parser::advance_eof;
+    e.type = EVENT_END;
+    e.value.clear();
+    return false;
 }
 
 bool parser::handle_eof(event & e)
@@ -204,12 +244,13 @@ bool parser::handle_eof(event & e)
     return eof;
 }
 
-bool parser::advance_eof(event & e)
+bool parser::skip_ws()
 {
-    state_ = &parser::advance_eof;
-    e.type = EVENT_END;
-    e.value.clear();
-    return false;
+    char c;
+    while (in_ && std::isspace(c = get_char()));
+    const bool ok(in_);
+    if (ok) put_back(c);
+    return ok;
 }
 
 void parser::check_lf()

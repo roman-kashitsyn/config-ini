@@ -60,13 +60,14 @@ private:
     void put_back(char);
 
     bool advance_gen(event &);
-    bool advance_comment(event &);
     bool advance_section(event &);
     bool advance_param(event &);
     bool advance_value(event &);
     bool advance_eof(event &);
 
     bool handle_eof(event &);
+    bool skip_ws();
+    bool skip_comment(event &);
     void unexpected_token(event &, const char *);
     void check_lf();
     void handle_new_line();
