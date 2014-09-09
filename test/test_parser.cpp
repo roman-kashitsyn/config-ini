@@ -2,12 +2,11 @@
 
 #include "config/ini/parser.hpp"
 #include <boost/test/included/unit_test.hpp>
-#include <iostream>
 #include <sstream>
 
 using config::ini::parser;
 
-BOOST_AUTO_TEST_CASE(simple_events)
+BOOST_AUTO_TEST_CASE(test_simple_event_sequence)
 {
     const parser::event expected[] = {
         { parser::EVENT_SECTION, "section" },
@@ -35,11 +34,31 @@ BOOST_AUTO_TEST_CASE(simple_events)
 
     for (std::size_t i = 0; i < num_events; ++i) {
         BOOST_CHECK(p.advance(e));
-        std::cout << "step " << i+1 << "\n"
-                  << "parsed:   " << e << "\n"
-                  << "expected: " << expected[i] << std::endl;
         BOOST_CHECK(e == expected[i]);
     }
 
     BOOST_ASSERT(!p.advance(e));
+}
+
+BOOST_AUTO_TEST_CASE(test_unexpected_end_of_section)
+{
+    std::istringstream is("[section");
+    std::string filename("section.ini");
+    parser p(filename, is);
+    parser::event e;
+    BOOST_CHECK(!p.advance(e));
+    BOOST_CHECK(e.type == parser::EVENT_ERROR);
+    BOOST_CHECK(e.value.find(filename) == 0);
+    BOOST_CHECK(e.value.find("end of file") != std::string::npos);
+}
+
+BOOST_AUTO_TEST_CASE(test_unexpected_starting_symbol)
+{
+    std::istringstream is("\n!section!\n");
+    parser p(is);
+    parser::event e;
+    BOOST_CHECK(!p.advance(e));
+    BOOST_CHECK(e.type == parser::EVENT_ERROR);
+    BOOST_MESSAGE(e.value);
+    BOOST_CHECK(e.value.find("symbol '!'") != std::string::npos);
 }

@@ -27,7 +27,8 @@
 #include <sstream>
 #include <cctype>
 
-namespace config { namespace ini {
+namespace config {
+namespace ini {
 
 namespace {
 const char * event_type_to_string(parser::event_type t)
@@ -53,9 +54,20 @@ void trim_right(std::string & s)
 }
 }
 
+parser::parser(const std::string &filename, std::istream &is)
+    : in_(is)
+    , filename_(filename)
+    , state_(&parser::advance_gen)
+    , line_(0)
+    , pos_(0)
+{}
+
 parser::parser(std::istream & is)
     : in_(is)
+    , filename_("(Unknown)")
     , state_(&parser::advance_gen)
+    , line_(0)
+    , pos_(0)
 {}
 
 bool parser::advance(event & e)
@@ -99,10 +111,8 @@ bool parser::advance_gen(event & e)
                 put_back(c);
                 return advance_param(e);
             }
-            std::ostringstream ss(e.value);
-            ss << "Unexpected symbol " << c
-               << " at [" << line_ << "," << pos_ << "]";
-            e.type = EVENT_ERROR;
+            char buf[] = {'s', 'y', 'm', 'b', 'o', 'l', ' ', '\'', c, '\'', '\0'};
+            unexpected_token(e, buf);
             return false;
         }
     }
@@ -118,7 +128,7 @@ bool parser::skip_comment(event & e)
             check_lf();
         case '\n':
             handle_new_line();
-            return bool(in_);
+            return in_.good();
         default:
             if (!in_) return false;
             /* Consuming symbols till the end of the string */
@@ -248,7 +258,7 @@ bool parser::skip_ws()
 {
     char c;
     while (in_ && std::isspace(c = get_char()));
-    const bool ok(in_);
+    const bool ok = in_.good();
     if (ok) put_back(c);
     return ok;
 }
@@ -268,9 +278,10 @@ void parser::handle_new_line()
 void parser::unexpected_token(event & e, const char *desc)
 {
     std::ostringstream ss(e.value);
-    ss << "Unexpected " << desc
-       << " at [" << line_ << ',' << pos_ << ']';
+    ss << filename_ << ":" << line_ << ":" << pos_ << ": Unexpected token: "
+       << desc;
     e.type = EVENT_ERROR;
+    e.value = ss.str();
 }
 
 bool operator==(const parser::event & lhs,
@@ -285,4 +296,5 @@ std::ostream & operator<<(std::ostream & os, const parser::event & e)
        << ", \"" << e.value << "\"}";
 }
 
-} }
+}
+}

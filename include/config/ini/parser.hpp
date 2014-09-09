@@ -13,16 +13,17 @@
    See the License for the specific language governing permissions and
    limitations under the License.
  */
-#pragma once
+#ifndef CONFIG_INI_PARSER_HPP
+#define CONFIG_INI_PARSER_HPP
 
 #include <iosfwd>
 #include <string>
 
-namespace config { namespace ini {
+namespace config {
+namespace ini {
 
 /**
  * @brief Pull .ini file parser implementation.
- * @author Roman Kashitsyn
  */
 class parser
 {
@@ -42,7 +43,16 @@ public:
         std::string value;
     };
 
-    parser(std::istream & in);
+    /**
+     * @brief Constructs parser of input stream \p in.
+     */
+    parser(std::istream &in);
+
+    /**
+     * @brief Constructs parser of input stream \p in assuming that
+     * filename is \p filename.
+     */
+    parser(const std::string &filename, std::istream &in);
 
     /**
      * @brief Retrieves next parser event from the input stream.
@@ -53,6 +63,7 @@ public:
     bool advance(event & e);
 
 private:
+    // noncopyable
     parser(const parser &);
     parser & operator=(const parser &);
 
@@ -75,6 +86,7 @@ private:
     typedef bool (parser::*state)(event &);
 
     std::istream & in_;
+    std::string filename_;
     state state_;
     std::size_t line_;
     std::size_t pos_;
@@ -86,4 +98,7 @@ bool operator==(const parser::event &,
 std::ostream & operator<<(std::ostream &,
                           const parser::event &);
 
-} }
+}
+}
+
+#endif
