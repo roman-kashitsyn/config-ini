@@ -89,7 +89,7 @@ private:
     std::string filename_;
     state state_;
     std::size_t line_;
-    std::size_t pos_;
+    std::size_t column_;
 };
 
 bool operator==(const parser::event &,

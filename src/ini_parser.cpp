@@ -58,16 +58,16 @@ parser::parser(const std::string &filename, std::istream &is)
     : in_(is)
     , filename_(filename)
     , state_(&parser::advance_gen)
-    , line_(0)
-    , pos_(0)
+    , line_(1)
+    , column_(1)
 {}
 
 parser::parser(std::istream & is)
     : in_(is)
     , filename_("(Unknown)")
     , state_(&parser::advance_gen)
-    , line_(0)
-    , pos_(0)
+    , line_(1)
+    , column_(1)
 {}
 
 bool parser::advance(event & e)
@@ -77,13 +77,13 @@ bool parser::advance(event & e)
 
 char parser::get_char()
 {
-    ++pos_;
+    ++column_;
     return in_.get();
 }
 
 void parser::put_back(char c)
 {
-    --pos_;
+    --column_;
     in_.putback(c);
 }
 
@@ -271,14 +271,14 @@ void parser::check_lf()
 
 void parser::handle_new_line()
 {
-    pos_ = 0;
+    column_ = 1;
     ++line_;
 }
 
 void parser::unexpected_token(event & e, const char *desc)
 {
     std::ostringstream ss(e.value);
-    ss << filename_ << ":" << line_ << ":" << pos_ << ": Unexpected token: "
+    ss << filename_ << ":" << line_ << ":" << column_ << ": Unexpected token: "
        << desc;
     e.type = EVENT_ERROR;
     e.value = ss.str();
