@@ -1,0 +1,12 @@
+# -*- mode: yaml -*-
+BasedOnStyle: LLVM
+ColumnLimit: 80
+ConstructorInitializerAllOnOneLineOrOnePerLine: true
+BreakConstructorInitializersBeforeComma: true
+AlwaysBreakTemplateDeclarations: true
+IndentWidth: 4
+AlignTrailingComments: true
+IndentCaseLabels: false
+AccessModifierOffset: -4
+# vim: ft=yaml
+

@@ -31,23 +31,28 @@ namespace config {
 namespace ini {
 
 namespace {
-const char * event_type_to_string(parser::event_type t)
-{
+const char *event_type_to_string(parser::event_type t) {
     switch (t) {
-    case parser::EVENT_ERROR: return "ERROR";
-    case parser::EVENT_SECTION: return "SECTION";
-    case parser::EVENT_NAME: return "NAME";
-    case parser::EVENT_VALUE: return "VALUE";
-    case parser::EVENT_END: return "END";
-    default: return "UNKNOWN";
+    case parser::EVENT_ERROR:
+        return "ERROR";
+    case parser::EVENT_SECTION:
+        return "SECTION";
+    case parser::EVENT_NAME:
+        return "NAME";
+    case parser::EVENT_VALUE:
+        return "VALUE";
+    case parser::EVENT_END:
+        return "END";
+    default:
+        return "UNKNOWN";
     }
 }
 
-void trim_right(std::string & s)
-{
+void trim_right(std::string &s) {
     const std::size_t n = s.length();
     std::size_t i = n;
-    while (i && std::isspace(s[i - 1])) --i;
+    while (i && std::isspace(s[i - 1]))
+        --i;
     if (i != n) {
         s.erase(i);
     }
@@ -70,28 +75,23 @@ parser::parser(std::istream & is)
     , column_(1)
 {}
 
-bool parser::advance(event & e)
-{
-    return (this->*state_)(e);
-}
+bool parser::advance(event &e) { return (this->*state_)(e); }
 
-char parser::get_char()
-{
+char parser::get_char() {
     ++column_;
     return in_.get();
 }
 
-void parser::put_back(char c)
-{
+void parser::put_back(char c) {
     --column_;
     in_.putback(c);
 }
 
-bool parser::advance_gen(event & e)
-{
+bool parser::advance_gen(event &e) {
     for (;;) {
         const char c = get_char();
-        if (handle_eof(e)) return false;
+        if (handle_eof(e))
+            return false;
         switch (c) {
         case '\r':
             check_lf();
@@ -106,20 +106,21 @@ bool parser::advance_gen(event & e)
         case '[':
             return advance_section(e);
         default:
-            if (std::isspace(c)) continue;
+            if (std::isspace(c))
+                continue;
             if (std::isalnum(c)) {
                 put_back(c);
                 return advance_param(e);
             }
-            char buf[] = {'s', 'y', 'm', 'b', 'o', 'l', ' ', '\'', c, '\'', '\0'};
+            char buf[] = { 's', 'y',  'm', 'b',  'o', 'l',
+                           ' ', '\'', c,   '\'', '\0' };
             unexpected_token(e, buf);
             return false;
         }
     }
 }
 
-bool parser::skip_comment(event & e)
-{
+bool parser::skip_comment(event &e) {
     for (;;) {
         const char c = get_char();
 
@@ -130,15 +131,15 @@ bool parser::skip_comment(event & e)
             handle_new_line();
             return in_.good();
         default:
-            if (!in_) return false;
+            if (!in_)
+                return false;
             /* Consuming symbols till the end of the string */
             continue;
         }
     }
 }
 
-bool parser::advance_section(event & e)
-{
+bool parser::advance_section(event &e) {
     e.value.clear();
     skip_ws();
     for (;;) {
@@ -170,8 +171,7 @@ bool parser::advance_section(event & e)
     }
 }
 
-bool parser::advance_param(event & e)
-{
+bool parser::advance_param(event &e) {
     e.value.clear();
     for (;;) {
         const char c = get_char();
@@ -202,8 +202,7 @@ bool parser::advance_param(event & e)
     }
 }
 
-bool parser::advance_value(event & e)
-{
+bool parser::advance_value(event &e) {
     e.value.clear();
     skip_ws();
     for (;;) {
@@ -233,68 +232,62 @@ bool parser::advance_value(event & e)
             e.value.push_back(c);
         }
     }
-    done:
+done:
     e.type = EVENT_VALUE;
     trim_right(e.value);
     return true;
 }
 
-bool parser::advance_eof(event & e)
-{
+bool parser::advance_eof(event &e) {
     state_ = &parser::advance_eof;
     e.type = EVENT_END;
     e.value.clear();
     return false;
 }
 
-bool parser::handle_eof(event & e)
-{
+bool parser::handle_eof(event &e) {
     const bool eof = in_.eof();
-    if (eof) advance_eof(e);
+    if (eof)
+        advance_eof(e);
     return eof;
 }
 
-bool parser::skip_ws()
-{
+bool parser::skip_ws() {
     char c;
-    while (in_ && std::isspace(c = get_char()));
+    while (in_ && std::isspace(c = get_char()))
+        ;
     const bool ok = in_.good();
-    if (ok) put_back(c);
+    if (ok)
+        put_back(c);
     return ok;
 }
 
-void parser::check_lf()
-{
+void parser::check_lf() {
     const char c = get_char();
-    if (c != '\n') put_back(c);
+    if (c != '\n')
+        put_back(c);
 }
 
-void parser::handle_new_line()
-{
+void parser::handle_new_line() {
     column_ = 1;
     ++line_;
 }
 
-void parser::unexpected_token(event & e, const char *desc)
-{
+void parser::unexpected_token(event &e, const char *desc) {
     std::ostringstream ss(e.value);
-    ss << filename_ << ":" << line_ << ":" << column_ << ": Unexpected token: "
-       << desc;
+    ss << filename_ << ":" << line_ << ":" << column_
+       << ": Unexpected token: " << desc;
     e.type = EVENT_ERROR;
     e.value = ss.str();
 }
 
-bool operator==(const parser::event & lhs,
-                const parser::event & rhs)
-{
+bool operator==(const parser::event &lhs, const parser::event &rhs) {
     return lhs.type == rhs.type && lhs.value == rhs.value;
 }
 
-std::ostream & operator<<(std::ostream & os, const parser::event & e)
-{
-    os << "event{" << event_type_to_string(e.type)
-       << ", \"" << e.value << "\"}";
+std::ostream &operator<<(std::ostream &os, const parser::event &e) {
+    os << "event{" << event_type_to_string(e.type) << ", \"" << e.value
+       << "\"}";
 }
-
 }
 }

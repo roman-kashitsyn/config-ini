@@ -25,11 +25,9 @@ namespace ini {
 /**
  * @brief Pull .ini file parser implementation.
  */
-class parser
-{
+class parser {
 public:
-    enum event_type
-    {
+    enum event_type {
         EVENT_SECTION,
         EVENT_NAME,
         EVENT_VALUE,
@@ -37,8 +35,7 @@ public:
         EVENT_END
     };
 
-    struct event
-    {
+    struct event {
         event_type type;
         std::string value;
     };
@@ -60,12 +57,12 @@ public:
      * @return true if a useful event was retrieved,
      *         false on error or end of stream
      */
-    bool advance(event & e);
+    bool advance(event &e);
 
 private:
     // noncopyable
     parser(const parser &);
-    parser & operator=(const parser &);
+    parser &operator=(const parser &);
 
     char get_char();
     void put_back(char);
@@ -85,19 +82,16 @@ private:
 
     typedef bool (parser::*state)(event &);
 
-    std::istream & in_;
+    std::istream &in_;
     std::string filename_;
     state state_;
     std::size_t line_;
     std::size_t column_;
 };
 
-bool operator==(const parser::event &,
-                const parser::event &);
+bool operator==(const parser::event &, const parser::event &);
 
-std::ostream & operator<<(std::ostream &,
-                          const parser::event &);
-
+std::ostream &operator<<(std::ostream &, const parser::event &);
 }
 }
 
